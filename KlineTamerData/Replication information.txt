@@ -1,0 +1,10 @@
+Replication files for "Bayesian inference in a class of partially identified models" by Brendan Kline and Elie Tamer
+
+Example 1 (interval identified): simulation_interval.m
+Example 2 (interval-censored regression): simulation_censored.m 
+	Note: get true identified set by setting n = 100000
+Example 3 (binary game): simulation_game.m
+Empirical example: empirical_game.m
+
+Notes on other files
+qsimvnv.m is available: http://www.math.wsu.edu/faculty/genz/software/matlab/qsimvnv.m
