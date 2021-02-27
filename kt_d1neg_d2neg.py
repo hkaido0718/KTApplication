@@ -9,6 +9,9 @@ import matplotlib
 import time
 from scipy import optimize
 from sklearn.linear_model import LogisticRegression
+from sklearn.covariance import ShrunkCovariance
+from sklearn.covariance import MinCovDet
+from sklearn.covariance import LedoitWolf
 from numpy.linalg import inv, pinv
 import ray
 import sys
@@ -20,7 +23,7 @@ rng = default_rng()
 ind = int(sys.argv[1])
 nprocs = int(sys.argv[2])
 ray.init(num_cpus=nprocs)
-# ray.init()
+#ray.init()
 
 # so_file = "./TOMS462/toms462.so"
 # lib = ct.CDLL(so_file)
@@ -393,15 +396,18 @@ def S_theta_x(theta, y,x1, x2,p0,smooth):
 def get_Tn(theta_star,y,x1,x2,ccp):
     # Estimate CCP
     score = S_theta_x(theta_star,y,x1,x2,ccp,0)
-    temp = np.sum(score,axis=1)
-    score = score[~np.isnan(temp),:]
+    temp1 = np.sum(score,axis=1)
+    # temp2 = np.amax(np.abs(score),axis=1)
+    score = score[(~np.isnan(temp1)),:]
     nn = score.shape[0]
-    sbar = np.sum(score,axis=0)/nn
-    cscore = score - np.tile(sbar,(nn,1))
-    W = np.einsum('ij,ik->jk', cscore, cscore)/nn
+    cov = LedoitWolf().fit(score)
+    # sbar = np.sum(score,axis=0)/nn
+    # cscore = score - np.tile(sbar,(nn,1))
+    # W = np.einsum('ij,ik->jk', cscore, cscore)/nn
     S = np.sum(score,axis=0)/np.sqrt(nn)
     try:
-        Tn = np.dot(S,np.matmul(pinv(W+0*np.eye(dx)),S))
+        # Tn = np.dot(S,np.matmul(pinv(W+0.05*np.eye(dx)),S))
+        Tn = np.dot(S,np.matmul(pinv(cov.covariance_),S))
     except np.linalg.LinAlgError as err:
         Tn = 1e+5
     STn =  np.append(S,Tn)
@@ -493,8 +499,8 @@ def L_Delta(Delta1, Delta2,out):
     return results
 
 def Function_L_Delta_root(numgrid=2):
-    xx = np.linspace(-2, 0, numgrid) # grid for Delta1 
-    yy = np.linspace(-2, 0, numgrid) # grid for Delta2
+    xx = np.linspace(-1.75, 0, numgrid) # grid for Delta1 
+    yy = np.linspace(-1.75, -.25, numgrid) # grid for Delta2
     Delta1, Delta2 = np.meshgrid(xx, yy)
     Delta1 = Delta1.ravel()
     Delta2 = Delta2.ravel()
@@ -524,7 +530,7 @@ def get_CS(thetagrid,T,cv):
     theta_selected = thetagrid[idx,:]
     return theta_selected,idx
 
-numgrid = 30
+numgrid = 25
 cv = chi2.ppf(.95,9)
 thetagrid, ST = get_ST(numgrid)
 np.savez(resfile,thetagrid=thetagrid,ST=ST)
